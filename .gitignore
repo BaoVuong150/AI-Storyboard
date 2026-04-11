@@ -30,7 +30,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files — BẢO VỆ API KEY (Domain 5.1)
+.env
 .env*.local
 
 # typescript
