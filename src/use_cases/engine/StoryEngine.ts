@@ -4,10 +4,11 @@
  * 📍 Tầng: use_cases/engine (Tầng 2 — Thuật toán)
  * 📦 Dependencies: Chỉ import từ core/ + data_structures/ cùng tầng
  *
- * Đây là "Giám đốc" điều phối 3 công nhân:
+ * Đây là "Giám đốc" điều phối 4 công nhân:
  *   1. DoublyLinkedList → Quản lý thứ tự Scene
  *   2. UndoRedoStack    → Lưu lịch sử thao tác
- *   3. IAiClient         → Gọi AI sinh Scene (được inject vào từ bên ngoài)
+ *   3. LRUCache          → Cache kết quả AI (tiết kiệm API credits)
+ *   4. IAiClient         → Gọi AI sinh Scene (được inject vào từ bên ngoài)
  *
  * UI (Tầng 4) và Zustand (Tầng 3) chỉ nói chuyện với StoryEngine.
  * Chúng KHÔNG ĐƯỢC biết bên trong có LinkedList hay Stack.
@@ -25,6 +26,8 @@ import { INode } from '../../core/entities/Node';
 import { Result, createSuccess, createFailure } from '../../core/types/common';
 import { DoublyLinkedList } from '../data_structures/DoublyLinkedList';
 import { UndoRedoStack } from '../data_structures/UndoRedoStack';
+import { LRUCache } from '../data_structures/LRUCache';
+import { normalizePrompt } from './normalizePrompt';
 
 /**
  * Class StoryEngine — Cầu nối giữa Thuật toán và Thế giới bên ngoài
@@ -44,13 +47,17 @@ export class StoryEngine {
   /** Bảng tra nhanh: SceneID → Node reference — O(1) lookup */
   private readonly nodeMap: Map<SceneID, INode<IScene>>;
 
+  /** Cache prompt → kết quả AI (tiết kiệm Free-tier API credits) — O(1) get/put */
+  private readonly promptCache: LRUCache<string, IScene[]>;
+
   /** AI Client (được inject từ bên ngoài — SOLID-D) */
   private readonly aiClient: IAiClient;
 
-  constructor(aiClient: IAiClient) {
+  constructor(aiClient: IAiClient, cacheCapacity: number = 10) {
     this.sceneList = new DoublyLinkedList();
     this.history = new UndoRedoStack();
     this.nodeMap = new Map();
+    this.promptCache = new LRUCache(cacheCapacity);
     this.aiClient = aiClient;
   }
 
@@ -83,16 +90,34 @@ export class StoryEngine {
   /**
    * Gọi AI sinh danh sách Scene từ prompt
    *
-   * Luồng: Prompt → AI → Zod validate (ở Tầng 3) → Scenes[] → Nhồi vào LinkedList
-   * Time: O(N) với N = số Scene AI trả về
+   * Luồng:
+   *   1. Normalize prompt ("  MV Cyberpunk!  " → "mv cyberpunk")
+   *   2. Check cache → Hit? Trả ngay, KHÔNG gọi AI, TIẾT KIỆM 1 API call
+   *   3. Cache miss → Gọi AI → Lưu kết quả vào cache → Nhồi vào LinkedList
+   *
+   * Time: O(N) với N = số Scene AI trả về (hoặc O(1) nếu cache hit)
    */
   async generateScenes(
     prompt: string,
     maxScenes: number,
     signal?: AbortSignal,
   ): Promise<Result<IScene[]>> {
+    const normalizedKey = normalizePrompt(prompt);
+
+    // Cache HIT → trả ngay, không tốn API credit
+    const cached = this.promptCache.get(normalizedKey);
+    if (cached) {
+      this.saveSnapshot();
+      this.rebuildFromSnapshot(cached);
+      return createSuccess(this.getSnapshot());
+    }
+
+    // Cache MISS → gọi AI
     const result = await this.aiClient.generateScenes(prompt, maxScenes, signal);
     if (!result.success) return result;
+
+    // Lưu vào cache cho lần sau
+    this.promptCache.put(normalizedKey, result.data);
 
     this.saveSnapshot();
     this.rebuildFromSnapshot(result.data);
