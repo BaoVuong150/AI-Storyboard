@@ -158,8 +158,18 @@ export class DoublyLinkedList<T> {
     return null;
   }
 
-  /** Xóa toàn bộ danh sách — Time: O(1) */
+  /**
+   * Xóa toàn bộ danh sách + cắt sạch pointer từng node
+   * Time: O(N) — phải duyệt cắt từng node để GC thu hồi an toàn
+   */
   clear(): void {
+    let current = this._head;
+    while (current) {
+      const next = current.next;
+      current.prev = null;
+      current.next = null;
+      current = next;
+    }
     this._head = null;
     this._tail = null;
     this._size = 0;
