@@ -23,7 +23,7 @@ import { IScene } from '../../core/entities/Scene';
 import { SceneID } from '../../core/types/common';
 import { IAiClient } from '../../core/interfaces/IAiClient';
 import { INode } from '../../core/entities/Node';
-import { Result, createSuccess, createFailure } from '../../core/types/common';
+import { Result, createSuccess } from '../../core/types/common';
 import { DoublyLinkedList } from '../data_structures/DoublyLinkedList';
 import { UndoRedoStack } from '../data_structures/UndoRedoStack';
 import { LRUCache } from '../data_structures/LRUCache';
@@ -52,19 +52,6 @@ export class StoryEngine {
 
   /** AI Client (được inject từ bên ngoài — SOLID-D) */
   private readonly aiClient: IAiClient;
-
-  /**
-   * Cờ khóa chống Race Condition (Domain 4.4)
-   *
-   * Kịch bản nguy hiểm:
-   *   User gõ prompt A → đang gọi AI (2 giây)
-   *   User nóng ruột gõ prompt B → gọi AI lần 2
-   *   Prompt B trả về trước → hiển thị Scene của B
-   *   Prompt A trả về sau → ghi đè lên → hiển thị Scene của A → SAI!
-   *
-   * Giải pháp: Khóa lại, prompt B phải đợi prompt A xong.
-   */
-  private _isGenerating: boolean = false;
 
   constructor(aiClient: IAiClient, cacheCapacity: number = 10) {
     this.sceneList = new DoublyLinkedList();
@@ -104,49 +91,45 @@ export class StoryEngine {
    * Gọi AI sinh danh sách Scene từ prompt
    *
    * Luồng:
-   *   0. Kiểm tra khóa → Đang generate? Từ chối ngay.
    *   1. Normalize prompt ("  MV Cyberpunk!  " → "mv cyberpunk")
-   *   2. Check cache → Hit? Trả ngay, KHÔNG gọi AI, TIẾT KIỆM 1 API call
-   *   3. Cache miss → Gọi AI → Lưu kết quả vào cache → Nhồi vào LinkedList
+   *   2. Check cache (trừ khi forceRegenerate = true)
+   *      → Hit? Trả ngay, KHÔNG gọi AI, TIẾT KIỆM 1 API call
+   *   3. Cache miss / force → Gọi AI → Clone & lưu cache → Nhồi vào LinkedList
    *
    * Time: O(N) với N = số Scene AI trả về (hoặc O(1) nếu cache hit)
+   *
+   * @param forceRegenerate - true = bỏ qua cache, gọi AI mới (nút "Sinh lại")
    */
   async generateScenes(
     prompt: string,
     maxScenes: number,
     signal?: AbortSignal,
+    forceRegenerate: boolean = false,
   ): Promise<Result<IScene[]>> {
-    // Chặn Race Condition: prompt A đang chạy → từ chối prompt B
-    if (this._isGenerating) {
-      return createFailure('Đang xử lý prompt trước đó. Vui lòng chờ hoàn tất.');
-    }
     const normalizedKey = normalizePrompt(prompt);
 
-    // Cache HIT → trả ngay, không tốn API credit (không cần khóa vì không gọi mạng)
-    const cached = this.promptCache.get(normalizedKey);
-    if (cached) {
-      this.saveSnapshot();
-      this.rebuildFromSnapshot(cached);
-      return createSuccess(this.getSnapshot());
+    // Cache HIT → trả ngay, không tốn API credit
+    // Bỏ qua nếu user chủ đích muốn kết quả mới (EC-2.11)
+    if (!forceRegenerate) {
+      const cached = this.promptCache.get(normalizedKey);
+      if (cached) {
+        this.saveSnapshot();
+        this.rebuildFromSnapshot(cached);
+        return createSuccess(this.getSnapshot());
+      }
     }
 
-    // Cache MISS → gọi AI (BẬT KHÓA để chặn prompt khác xen vào)
-    this._isGenerating = true;
-    try {
-      const result = await this.aiClient.generateScenes(prompt, maxScenes, signal);
-      if (!result.success) return result;
+    // Cache MISS hoặc forceRegenerate → gọi AI
+    const result = await this.aiClient.generateScenes(prompt, maxScenes, signal);
+    if (!result.success) return result;
 
-      // Lưu vào cache cho lần sau
-      this.promptCache.put(normalizedKey, result.data);
+    // Clone trước khi lưu cache — chống nhiễm bẩn (EC-2.10)
+    this.promptCache.put(normalizedKey, result.data.map(s => ({ ...s })));
 
-      this.saveSnapshot();
-      this.rebuildFromSnapshot(result.data);
+    this.saveSnapshot();
+    this.rebuildFromSnapshot(result.data);
 
-      return createSuccess(this.getSnapshot());
-    } finally {
-      // Luôn MỞ KHÓA — kể cả khi AI lỗi, mạng rớt, hay AbortSignal hủy
-      this._isGenerating = false;
-    }
+    return createSuccess(this.getSnapshot());
   }
 
   /**
@@ -227,9 +210,6 @@ export class StoryEngine {
 
   /** Kiểm tra có thể Redo không — Time: O(1) */
   get canRedo(): boolean { return this.history.canRedo(); }
-
-  /** Kiểm tra có đang gọi AI không — UI dùng để disable nút Generate + hiện Loading */
-  get isGenerating(): boolean { return this._isGenerating; }
 
   /** Số Scene hiện tại — Time: O(1) */
   get sceneCount(): number { return this.sceneList.size; }
