@@ -127,15 +127,18 @@ You can test the latest production-grade `.apk` directly on an Android device:
 **👉 [🔗 EAS Build Link - Download APK Here](https://expo.dev/accounts/baovuong123/projects/ai-storyboard/builds/fe3777d7-5ec2-4948-8f98-34a46a67e419)**
 
 ### 🍏 iOS/Apple Fast Track (PWA Web App)
-Due to Apple's strict distribution policies, providing direct `.ipa` files is impossible. However, to guarantee an identical "Native-like" Visual eXperience for reviewers using **iPhones**, a PWA Web version is deployed via Vercel.
+**Why a Web App for a Mobile Role? (The Walled Garden Bypass)**
+Due to Apple's strict distribution policies (lack of sideloading without `$99/yr` developer certificates or UDID provisioning), providing direct `.ipa` files for quick review is impossible. 
+
+Instead of letting Apple's Walled Garden block the review process, I leveraged the **React Native Web** architecture under Expo's Metro Bundler to compile the AST to DOM elements. It is deployed as a standalone Progressive Web App (PWA) on Vercel. This guarantees an identical, native-like "Visual eXperience" for reviewers using **iPhones**, completely bypassing the App Store friction.
 
 **👉 [🔗 Open Web Application Demo](https://ai-storyboard-two.vercel.app/)**
 
-**To install on iPhone:**
+**To install on your iPhone (Native Experience):**
 1. Open the Vercel link using **Safari**.
 2. Tap the `Share` icon (square with an up arrow) at the bottom.
 3. Select **"Add to Home Screen"**.
-4. Launch the application from your home screen to experience it in a standalone, edge-to-edge UI (Hiding the browser URL bar like a real Native App!).
+4. Launch the application from your home screen (it will launch in a standalone, edge-to-edge frame hiding the browser URL bar, performing exactly like a real Native App!).
 
 ---
 <div align="center">
