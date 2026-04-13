@@ -7,6 +7,9 @@ module.exports = function (api) {
 
   const plugins = [];
 
+  // Fix lỗi Vite/Zustand: Cannot use import.meta outside a module
+  plugins.push('babel-plugin-transform-import-meta');
+
   // Chỉ xóa console.log khi build production (lúc dev vẫn giữ để debug)
   if (process.env.NODE_ENV === 'production') {
     plugins.push('transform-remove-console');
