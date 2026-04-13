@@ -126,6 +126,11 @@ You can test the latest production-grade `.apk` directly on an Android device:
 
 **👉 [🔗 EAS Build Link - Download APK Here](https://expo.dev/accounts/baovuong123/projects/ai-storyboard/builds/fe3777d7-5ec2-4948-8f98-34a46a67e419)**
 
+<div align="center">
+  <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://expo.dev/accounts/baovuong123/projects/ai-storyboard/builds/fe3777d7-5ec2-4948-8f98-34a46a67e419" alt="Scan to Install" />
+  <p><i>Scan to install directly on your Android phone!</i></p>
+</div>
+
 ### 🍏 iOS/Apple Fast Track (PWA Web App)
 **Why a Web App for a Mobile Role? (The Walled Garden Bypass)**
 Due to Apple's strict distribution policies (lack of sideloading without `$99/yr` developer certificates or UDID provisioning), providing direct `.ipa` files for quick review is impossible. 
