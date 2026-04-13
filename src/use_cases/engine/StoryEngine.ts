@@ -133,6 +133,14 @@ export class StoryEngine {
   }
 
   /**
+   * Nạp lại kịch bản từ Storage (sau khi Hydration hoặc chuyển kịch bản)
+   */
+  loadState(scenes: IScene[]): void {
+    this.history.clear(); // Xóa lịch sử cũ khi load kịch bản mới (EC-5.14)
+    this.rebuildFromSnapshot(scenes);
+  }
+
+  /**
    * Hoán đổi vị trí Scene (kéo thả)
    *
    * @param sceneId - Scene cần di chuyển
@@ -154,6 +162,22 @@ export class StoryEngine {
       this.sceneList.moveAfter(node, targetNode);
     }
 
+    return true;
+  }
+
+  /**
+   * Reorder toàn bộ danh sách từ mảng mới (dùng cho DraggableFlatList)
+   *
+   * Khi DraggableFlatList onDragEnd xong, nó trả về mảng data đã được sắp xếp lại.
+   * Thay vì tính toán moveAfter (dễ sai lệch), ta rebuild LinkedList từ mảng mới luôn.
+   *
+   * Time: O(N) — rebuild LinkedList
+   */
+  reorderFromArray(newOrder: IScene[]): boolean {
+    if (newOrder.length !== this.sceneList.size) return false;
+
+    this.saveSnapshot();
+    this.rebuildFromSnapshot(newOrder);
     return true;
   }
 

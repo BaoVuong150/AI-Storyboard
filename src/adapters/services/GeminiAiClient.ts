@@ -176,17 +176,36 @@ export class GeminiAiClient implements IAiClient {
    * Time: O(1)
    */
   private handleError(error: unknown): Result<IScene[]> {
-    // Lỗi abort (timeout hoặc app background) — Domain 4.1
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return createFailure('Đã hủy yêu cầu — quá thời gian chờ hoặc app về nền');
+    // ⚠️ EC-6.1: Thoát ra màn hình chính, Request gãy (Abort/Canceled)
+    // Cần 1 mã lỗi cắm cờ đặc biệt để Store biết mà KHÔNG BÁO TOAST, yên lặng phục hồi.
+    if (error instanceof Error && error.name === 'AbortError') {
+      return createFailure('CANCELED_BY_ABORT');
     }
 
     if (isAxiosError(error)) {
       const axiosErr = error as AxiosError;
       const status = axiosErr.response?.status;
 
-      if (axiosErr.code === 'ERR_CANCELED' || axiosErr.code === 'ECONNABORTED') {
-        return createFailure('Đã hủy yêu cầu — quá thời gian chờ hoặc app về nền');
+      // 🔍 DEBUG TẠM: In ra mã lỗi thực tế từ Google
+      if (__DEV__) {
+        console.log('[GeminiClient] ❌ HTTP Status:', status);
+        console.log('[GeminiClient] ❌ Axios code:', axiosErr.code);
+        console.log('[GeminiClient] ❌ Error name:', axiosErr.name);
+      }
+
+      // Xử lý CanceledError của Axios (EC-6.1)
+      if (axiosErr.code === 'ERR_CANCELED' || axiosErr.name === 'CanceledError') {
+        return createFailure('CANCELED_BY_ABORT');
+      }
+
+      // EC-6.5: Lỗi Timeout Ếch ngồi đáy giếng
+      if (axiosErr.code === 'ECONNABORTED') {
+        return createFailure('Mạng yếu quay mòng mòng. AI đang tắc đường, Sếp thử lại nhé!');
+      }
+
+      // EC-6.22: Lỗi Sai Giờ Hệ Thống (SSL Certificate Date Invalid)
+      if (axiosErr.code === 'ERR_CERT_DATE_INVALID' || axiosErr.message.includes('certificate')) {
+        return createFailure('Sai ngày giờ hệ thống Sếp ơi! Máy chủ từ chối kết nối.');
       }
 
       if (!axiosErr.response) {
@@ -195,20 +214,24 @@ export class GeminiAiClient implements IAiClient {
 
       switch (status) {
         case 400:
-          return createFailure('Prompt không hợp lệ — vui lòng nhập lại');
+          // EC-6.2: Data gửi lên bị từ chối
+          return createFailure('Idea quá dài hoặc chứa siêu ký tự tàng hình. Sếp bớt chữ lại xíu nha!');
         case 401:
         case 403:
           return createFailure('API Key không hợp lệ hoặc đã hết hạn');
         case 429:
-          return createFailure('Đã đạt giới hạn API — vui lòng thử lại sau vài phút');
+          // EC-6.2: API Rate Limit
+          return createFailure('Sếp tạo quá nhanh! AI đang mỏi tay, xin Sếp châm điếu thuốc rồi tạo tiếp.');
         case 500:
         case 503:
-          return createFailure('Server AI đang quá tải — vui lòng thử lại sau');
+          return createFailure('Server Google Gemini đang bảo trì hoặc quá tải — vui lòng thử lại sau');
         default:
           return createFailure(`Lỗi từ server AI (HTTP ${status}) — vui lòng thử lại`);
       }
     }
 
+    // 🔍 DEBUG TẠM
+    if (__DEV__) console.log('[GeminiClient] ❌ Lỗi không phải Axios:', error);
     return createFailure('Đã xảy ra lỗi không xác định — vui lòng thử lại');
   }
 

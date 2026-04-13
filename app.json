@@ -22,7 +22,11 @@
         "backgroundColor": "#0A0E1A"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.aistoryboard.app"
+      "package": "com.aistoryboard.app",
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
