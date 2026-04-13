@@ -11,6 +11,7 @@
 
   <!-- Chèn Link Tải App Bằng EAS URL Của Sếp Vào Đây -->
   [![Download APK](https://img.shields.io/badge/Download-APK%20(Expo%20EAS)-4630EB?style=for-the-badge&logo=android)](#-download--test)
+  [![Web App](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=for-the-badge&logo=vercel)](#-iosapple-fast-track-pwa-web-app)
   [![React Native](https://img.shields.io/badge/React_Native-Expo-000000?style=for-the-badge&logo=react)](https://expo.dev/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 </div>
@@ -124,6 +125,17 @@ You can test the latest production-grade `.apk` directly on an Android device:
 3. Install and try the "Visual eXperience"!
 
 **👉 [🔗 EAS Build Link - Download APK Here](https://expo.dev/accounts/baovuong123/projects/ai-storyboard/builds/fe3777d7-5ec2-4948-8f98-34a46a67e419)**
+
+### 🍏 iOS/Apple Fast Track (PWA Web App)
+Due to Apple's strict distribution policies, providing direct `.ipa` files is impossible. However, to guarantee an identical "Native-like" Visual eXperience for reviewers using **iPhones**, a PWA Web version is deployed via Vercel.
+
+**👉 [🔗 Open Web Application Demo](https://ai-storyboard-two.vercel.app/)**
+
+**To install on iPhone:**
+1. Open the Vercel link using **Safari**.
+2. Tap the `Share` icon (square with an up arrow) at the bottom.
+3. Select **"Add to Home Screen"**.
+4. Launch the application from your home screen to experience it in a standalone, edge-to-edge UI (Hiding the browser URL bar like a real Native App!).
 
 ---
 <div align="center">
